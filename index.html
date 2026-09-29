@@ -1,0 +1,33 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Chand Sports</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script></head><body>
+<header><a class="logo" href="/">Chand <b>Sports</b></a></header>
+<div class="hero"><h1 id="bt">Chand Sports</h1><p id="bs"></p></div>
+<main><div class="chips" id="chips"></div><div class="grid" id="grid"><p>Loading...</p></div></main>
+<footer id="ft"></footer>
+<a class="wa" id="wa" target="_blank" rel="noopener">💬</a>
+<script>
+let S={},P=[],C=[],cur="All";
+async function load(){
+ const [s,c,p]=await Promise.all([
+  sb.from("settings").select("*").eq("id",1).single(),
+  sb.from("categories").select("*").order("id"),
+  sb.from("products").select("*").order("id",{ascending:false})]);
+ S=s.data||{};C=c.data||[];P=p.data||[];render();
+}
+function render(){
+ document.title=S.banner_title||"Chand Sports";
+ bt.textContent=S.banner_title||"Chand Sports";bs.textContent=S.banner_sub||"";
+ chips.innerHTML=["All",...C.map(x=>x.name)].map(n=>`<button class="chip ${n==cur?"on":""}" data-c="${esc(n)}">${esc(n)}</button>`).join("");
+ chips.querySelectorAll("button").forEach(b=>b.onclick=()=>{cur=b.dataset.c;render()});
+ const list=P.filter(p=>cur=="All"||p.category==cur);
+ grid.innerHTML=list.map(p=>{
+  const m=encodeURIComponent(`Hi, I want to order: ${p.name} (${p.code||""})`);
+  return `<div class="card">${p.is_new?'<span class="new">NEW</span>':""}<div class="im">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:"👕"}</div><div class="t"><h3>${esc(p.name)}</h3><small>${esc(p.code)} · ${esc(p.category)}</small><a class="order" target="_blank" rel="noopener" href="https://wa.me/${esc(S.whatsapp)}?text=${m}">Order on WhatsApp</a></div></div>`}).join("")||"<p>No products yet.</p>";
+ ft.innerHTML=`<b>${esc(S.banner_title)}</b><br>📞 ${esc(S.phone)} · ✉️ ${esc(S.email)}<br>📍 ${esc(S.address)}`;
+ wa.href=`https://wa.me/${S.whatsapp}`;
+}
+load();
+</script></body></html>

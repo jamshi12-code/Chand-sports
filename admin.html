@@ -1,0 +1,74 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Admin - Chand Sports</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script></head><body>
+<header><a class="logo" href="/">Chand <b>Sports</b> Admin</a><button class="sec" id="out" style="display:none" onclick="sb.auth.signOut().then(()=>location.reload())">Logout</button></header>
+<main>
+<div id="login" class="box" style="display:none"><h3>Admin Login</h3>
+<label>Email</label><input id="em" type="email"><label>Password</label><input id="pw" type="password">
+<button class="red" onclick="doLogin()">Login</button></div>
+
+<div id="panel" style="display:none">
+<div class="tabs"><button onclick="tab('p')">Products</button><button class="sec" onclick="tab('c')">Categories</button><button class="sec" onclick="tab('s')">Settings</button></div>
+
+<div id="tp"><div class="box"><h3>Add Product</h3>
+<label>Name</label><input id="pn"><label>Code</label><input id="pc" placeholder="CS-TS-001">
+<label>Category</label><select id="pcat"></select>
+<label>Image</label><input id="pf" type="file" accept="image/*">
+<label><input id="pnew" type="checkbox" style="width:auto"> New Arrival</label><br><br>
+<button class="red" id="addb" onclick="addP()">Add Product</button></div>
+<div class="box" id="plist"></div></div>
+
+<div id="tc" style="display:none"><div class="box"><h3>Add Category</h3><input id="cn"><button class="red" onclick="addC()">Add</button></div><div class="box" id="clist"></div></div>
+
+<div id="ts" style="display:none"><div class="box"><h3>Site Settings</h3>
+<label>Banner title</label><input id="s_banner_title"><label>Banner subtitle</label><input id="s_banner_sub">
+<label>WhatsApp number (country code ke sath, + ke baghair)</label><input id="s_whatsapp">
+<label>Phone</label><input id="s_phone"><label>Email</label><input id="s_email"><label>Address</label><input id="s_address">
+<button class="red" onclick="saveS()">Save</button></div></div>
+</div></main>
+<script>
+const $=i=>document.getElementById(i);
+let C=[],P=[];
+function tab(t){["p","c","s"].forEach(x=>$("t"+x).style.display=x==t?"block":"none")}
+async function init(){
+ const {data}=await sb.auth.getSession();
+ if(data.session){$("login").style.display="none";$("panel").style.display="block";$("out").style.display="inline-block";refresh()}
+ else $("login").style.display="block";
+}
+async function doLogin(){
+ const {error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});
+ if(error)return alert("Login failed: "+error.message);init();
+}
+async function refresh(){
+ const [c,p,s]=await Promise.all([sb.from("categories").select("*").order("id"),sb.from("products").select("*").order("id",{ascending:false}),sb.from("settings").select("*").eq("id",1).single()]);
+ C=c.data||[];P=p.data||[];
+ $("pcat").innerHTML=C.map(x=>`<option>${esc(x.name)}</option>`).join("");
+ $("plist").innerHTML="<h3>All Products</h3>"+P.map(p=>`<div class="row"><span>${p.image_url?`<img src="${esc(p.image_url)}">`:"👕"}</span><span style="flex:1">${esc(p.name)}<br><small>${esc(p.code)} · ${esc(p.category)}${p.is_new?" · NEW":""}</small></span><button class="sec" onclick="delP(${p.id})">Delete</button></div>`).join("");
+ $("clist").innerHTML="<h3>Categories</h3>"+C.map(x=>`<div class="row"><span style="flex:1">${esc(x.name)}</span><button class="sec" onclick="delC(${x.id})">Delete</button></div>`).join("");
+ for(const k in (s.data||{}))if($("s_"+k))$("s_"+k).value=s.data[k]??"";
+}
+async function addP(){
+ const name=$("pn").value.trim();if(!name)return alert("Product name likhein");
+ $("addb").disabled=true;$("addb").textContent="Uploading...";
+ let image_url=null;const f=$("pf").files[0];
+ if(f){const path=Date.now()+"-"+f.name.replace(/[^a-z0-9.]/gi,"_");
+  const up=await sb.storage.from("product-images").upload(path,f);
+  if(up.error){alert("Image error: "+up.error.message);$("addb").disabled=false;$("addb").textContent="Add Product";return}
+  image_url=sb.storage.from("product-images").getPublicUrl(path).data.publicUrl}
+ const r=await sb.from("products").insert({name,code:$("pc").value.trim(),category:$("pcat").value,image_url,is_new:$("pnew").checked});
+ if(r.error)alert(r.error.message);
+ $("pn").value="";$("pc").value="";$("pf").value="";$("pnew").checked=false;
+ $("addb").disabled=false;$("addb").textContent="Add Product";refresh();
+}
+async function delP(id){if(confirm("Delete?")){await sb.from("products").delete().eq("id",id);refresh()}}
+async function addC(){const n=$("cn").value.trim();if(!n)return;const r=await sb.from("categories").insert({name:n});if(r.error)alert(r.error.message);$("cn").value="";refresh()}
+async function delC(id){if(confirm("Delete?")){await sb.from("categories").delete().eq("id",id);refresh()}}
+async function saveS(){
+ const o={};["banner_title","banner_sub","whatsapp","phone","email","address"].forEach(k=>o[k]=$("s_"+k).value.trim());
+ const r=await sb.from("settings").update(o).eq("id",1);alert(r.error?r.error.message:"Saved");
+}
+init();
+</script></body></html>
