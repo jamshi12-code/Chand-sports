@@ -3,31 +3,102 @@
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script></head><body>
-<header><a class="logo" href="/">Chand <b>Sports</b></a></header>
-<div class="hero"><h1 id="bt">Chand Sports</h1><p id="bs"></p></div>
-<main><div class="chips" id="chips"></div><div class="grid" id="grid"><p>Loading...</p></div></main>
-<footer id="ft"></footer>
+<header><a class="logo" href="#top" id="lg"></a>
+<nav><a href="#top">Home</a><a href="#products">Products</a><a href="#about">About</a><a href="#contact">Contact</a></nav></header>
+<div class="car hero" id="hero"><div class="ov"><h1 id="ht"></h1><p id="hs"></p></div></div>
+<main id="products"><h2 class="sh wt">Our Products</h2>
+<div class="tools"><input id="q" placeholder="Search products..."></div>
+<div class="chips" id="chips"></div><div class="grid" id="grid"><p>Loading...</p></div></main>
+<section class="about" id="about"><div class="wrap"><h2 class="sh wt">About Chand Sports</h2><p id="ab"></p></div></section>
+<footer id="contact"><div class="cols">
+<div><h4 id="fb"></h4><span id="ftag"></span></div>
+<div><h4>Quick Links</h4><a href="#top">Home</a><a href="#products">Products</a><a href="#about">About Us</a><a onclick="pol('privacy')">Privacy Policy</a><a onclick="pol('terms')">Terms &amp; Conditions</a></div>
+<div><h4>Categories</h4><span id="fc"></span></div>
+<div><h4>Contact</h4><span id="fi"></span></div></div>
+<div class="cp" id="cp"></div></footer>
 <a class="wa" id="wa" target="_blank" rel="noopener">💬</a>
+<div class="md" id="md"><div class="mb"><button class="sec x" onclick="closeM()">✕</button><div id="mc"></div></div></div>
 <script>
-let S={},P=[],C=[],cur="All";
+const $=i=>document.getElementById(i);
+let S={},P=[],C=[],B=[],cur="All",stopC=null,heroC=null;
+function words(el,text){el.classList.remove("go");el.innerHTML=String(text||"").split(/\s+/).filter(Boolean).map((w,i)=>`<span class="w" style="--i:${i}">${esc(w)}</span> `).join("");void el.offsetWidth;el.classList.add("go")}
+function carousel(root,o={}){
+ const sl=[...root.querySelectorAll(".sl")];if(!sl.length)return()=>{};
+ let i=0,t;const dots=root.querySelector(".dots");
+ if(dots)dots.innerHTML=sl.map((_,k)=>`<i data-k="${k}"></i>`).join("");
+ const show=n=>{i=(n+sl.length)%sl.length;sl.forEach((s,k)=>s.classList.toggle("on",k==i));dots&&[...dots.children].forEach((d,k)=>d.classList.toggle("on",k==i));o.onchange&&o.onchange(i)};
+ const start=()=>{clearInterval(t);if(sl.length>1)t=setInterval(()=>show(i+1),o.ms||3500)};
+ root.querySelector(".p")?.addEventListener("click",()=>{show(i-1);start()});
+ root.querySelector(".n")?.addEventListener("click",()=>{show(i+1);start()});
+ dots?.addEventListener("click",e=>{if(e.target.dataset.k){show(+e.target.dataset.k);start()}});
+ root.addEventListener("mouseenter",()=>clearInterval(t));root.addEventListener("mouseleave",start);
+ show(0);start();return()=>clearInterval(t);
+}
+const nav=(m)=>m?`<button class="cb p">‹</button><button class="cb n">›</button>`:"";
+function imgs(p){return (p.images&&p.images.length)?p.images:(p.image_url?[p.image_url]:[])}
 async function load(){
- const [s,c,p]=await Promise.all([
-  sb.from("settings").select("*").eq("id",1).single(),
-  sb.from("categories").select("*").order("id"),
-  sb.from("products").select("*").order("id",{ascending:false})]);
- S=s.data||{};C=c.data||[];P=p.data||[];render();
+ const [s,c,p,b]=await Promise.all([sb.from("settings").select("*").eq("id",1).single(),sb.from("categories").select("*").order("id"),sb.from("products").select("*").order("id",{ascending:false}),sb.from("banners").select("*").order("id")]);
+ S=s.data||{};C=c.data||[];P=p.data||[];B=b.data||[];render();
 }
 function render(){
- document.title=S.banner_title||"Chand Sports";
- bt.textContent=S.banner_title||"Chand Sports";bs.textContent=S.banner_sub||"";
- chips.innerHTML=["All",...C.map(x=>x.name)].map(n=>`<button class="chip ${n==cur?"on":""}" data-c="${esc(n)}">${esc(n)}</button>`).join("");
- chips.querySelectorAll("button").forEach(b=>b.onclick=()=>{cur=b.dataset.c;render()});
- const list=P.filter(p=>cur=="All"||p.category==cur);
- grid.innerHTML=list.map(p=>{
-  const m=encodeURIComponent(`Hi, I want to order: ${p.name} (${p.code||""})`);
-  return `<div class="card">${p.is_new?'<span class="new">NEW</span>':""}<div class="im">${p.image_url?`<img src="${esc(p.image_url)}" alt="${esc(p.name)}" loading="lazy">`:"👕"}</div><div class="t"><h3>${esc(p.name)}</h3><small>${esc(p.code)} · ${esc(p.category)}</small><a class="order" target="_blank" rel="noopener" href="https://wa.me/${esc(S.whatsapp)}?text=${m}">Order on WhatsApp</a></div></div>`}).join("")||"<p>No products yet.</p>";
- ft.innerHTML=`<b>${esc(S.banner_title)}</b><br>📞 ${esc(S.phone)} · ✉️ ${esc(S.email)}<br>📍 ${esc(S.address)}`;
- wa.href=`https://wa.me/${S.whatsapp}`;
+ const name=S.banner_title||"Chand Sports";document.title=name;
+ $("lg").innerHTML=(S.logo_url?`<img src="${esc(S.logo_url)}" alt="">`:"")+`<span>${esc(name)}</span>`;
+ // hero
+ if(heroC)heroC();
+ const hero=$("hero");hero.querySelectorAll(".sl,.cb,.dots").forEach(e=>e.remove());
+ const slides=B.length?B:[{}];
+ hero.insertAdjacentHTML("afterbegin",B.map(b=>`<div class="sl"><img src="${esc(b.image_url)}" alt=""></div>`).join("")+(B.length>1?nav(1)+'<div class="dots"></div>':""));
+ const setT=i=>{const b=slides[i]||{};words($("ht"),b.title||S.banner_title);words($("hs"),b.subtitle||S.banner_sub)};
+ setT(0);heroC=carousel(hero,{ms:4500,onchange:setT});
+ // products
+ $("chips").innerHTML=["All",...C.map(x=>x.name)].map(n=>`<button class="chip ${n==cur?"on":""}" data-c="${esc(n)}">${esc(n)}</button>`).join("");
+ $("chips").querySelectorAll("button").forEach(b=>b.onclick=()=>{cur=b.dataset.c;render()});
+ const q=$("q").value.toLowerCase();
+ const list=P.filter(p=>(cur=="All"||p.category==cur)&&(p.name+" "+(p.code||"")).toLowerCase().includes(q));
+ $("grid").innerHTML=list.map(p=>{const im=imgs(p)[0];
+  return `<div class="card" onclick="openP(${p.id})">${p.in_stock===false?'<span class="tag o">Out of stock</span>':p.is_new?'<span class="tag">NEW</span>':""}<div class="im">${im?`<img src="${esc(im)}" alt="${esc(p.name)}" loading="lazy">`:"👕"}</div><div class="t"><h3>${esc(p.name)}</h3><small>${esc(p.category)}</small>${p.price?`<div class="price">${esc(p.price)}</div>`:""}</div></div>`}).join("")||"<p>No products found.</p>";
+ $("ab").textContent=S.about||"";
+ $("fb").textContent=name;$("ftag").textContent="Quality sportswear, boxing & fitness gear.";
+ $("fc").innerHTML=C.map(x=>`<a href="#products" onclick="cur='${esc(x.name)}';render()">${esc(x.name)}</a>`).join("");
+ $("fi").innerHTML=`📞 ${esc(S.phone)}<br>✉️ ${esc(S.email)}<br>📍 ${esc(S.address)}<br>🕒 ${esc(S.hours)}`;
+ $("cp").textContent=`© ${new Date().getFullYear()} ${name}. All rights reserved.`;
+ $("wa").href=`https://wa.me/${S.whatsapp}`;
+ observe();
+}
+$("q").oninput=render;
+let io;function observe(){io&&io.disconnect();io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){words(e.target,e.target.dataset.t);io.unobserve(e.target)}}),{threshold:.4});
+ document.querySelectorAll(".wt").forEach(h=>{h.dataset.t=h.dataset.t||h.textContent;io.observe(h)})}
+function openM(html){$("mc").innerHTML=html;$("md").classList.add("open");document.body.style.overflow="hidden"}
+function closeM(){stopC&&stopC();stopC=null;$("md").classList.remove("open");document.body.style.overflow=""}
+$("md").onclick=e=>{if(e.target.id=="md")closeM()};
+function pol(k){openM(`<h2 class="sh">${k=="privacy"?"Privacy Policy":"Terms & Conditions"}</h2><div class="pol">${esc(S[k]||"Coming soon.")}</div>`)}
+const opts=s=>String(s||"").split(",").map(x=>x.trim()).filter(Boolean);
+function openP(id){
+ const p=P.find(x=>x.id==id),im=imgs(p),sz=opts(p.sizes),co=opts(p.colors);
+ openM(`<div class="pd"><div class="car" id="pc">${im.map(u=>`<div class="sl"><img src="${esc(u)}" alt=""></div>`).join("")||'<div class="im" style="height:100%">👕</div>'}${im.length>1?nav(1)+'<div class="dots"></div>':""}</div>
+ <div><h2 style="margin:0">${esc(p.name)}</h2><small>${esc(p.code)} · ${esc(p.category)}</small>
+ ${p.price?`<div class="price" style="font-size:20px;margin:6px 0">${esc(p.price)}</div>`:""}
+ <p style="color:var(--mut);line-height:1.6">${esc(p.description)}</p>
+ ${p.in_stock===false?'<div class="ok" style="background:#fdecea;color:#a12">Currently out of stock</div>':`
+ <div id="of"><label>Your name</label><input id="on"><label>Phone / WhatsApp</label><input id="ophn" type="tel"><label>Address</label><input id="oa">
+ ${sz.length?`<label>Size</label><select id="os">${sz.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}
+ ${co.length?`<label>Colour</label><select id="oc">${co.map(x=>`<option>${esc(x)}</option>`).join("")}</select>`:""}
+ <label>Quantity</label><input id="oq" type="number" min="1" value="1">
+ <button class="red" id="ob" style="width:100%" onclick="order(${p.id})">Order Now</button></div>`}
+ </div></div>`);
+ stopC=carousel($("pc"),{ms:3000});
+}
+async function order(id){
+ const p=P.find(x=>x.id==id),g=i=>$(i)?$(i).value.trim():"";
+ const o={product_name:p.name,product_code:p.code,size:g("os"),color:g("oc"),qty:+g("oq")||1,customer_name:g("on"),phone:g("ophn"),address:g("oa")};
+ if(!o.customer_name||!o.phone||!o.address)return alert("Please fill name, phone and address");
+ $("ob").disabled=true;$("ob").textContent="Sending...";
+ const r=await sb.from("orders").insert(o);
+ if(r.error){$("ob").disabled=false;$("ob").textContent="Order Now";return alert("Could not place order: "+r.error.message)}
+ const msg=`Hi, I want to order:\n${p.name} (${p.code||""})\nSize: ${o.size||"-"}\nColour: ${o.color||"-"}\nQty: ${o.qty}\n\nName: ${o.customer_name}\nPhone: ${o.phone}\nAddress: ${o.address}`;
+ const url=`https://wa.me/${S.whatsapp}?text=${encodeURIComponent(msg)}`;
+ $("of").innerHTML=`<div class="ok"><b>Order received!</b> We will contact you shortly.</div><a class="btn red" style="margin-top:10px;background:#25d366!important" target="_blank" rel="noopener" href="${url}">Confirm on WhatsApp</a>`;
+ window.open(url,"_blank");
 }
 load();
 </script></body></html>

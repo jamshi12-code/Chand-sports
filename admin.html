@@ -1,6 +1,5 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Admin - Chand Sports</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script></head><body>
@@ -9,66 +8,84 @@
 <div id="login" class="box" style="display:none"><h3>Admin Login</h3>
 <label>Email</label><input id="em" type="email"><label>Password</label><input id="pw" type="password">
 <button class="red" onclick="doLogin()">Login</button></div>
-
 <div id="panel" style="display:none">
-<div class="tabs"><button onclick="tab('p')">Products</button><button class="sec" onclick="tab('c')">Categories</button><button class="sec" onclick="tab('s')">Settings</button></div>
+<div class="tabs" id="tabs"></div>
 
-<div id="tp"><div class="box"><h3>Add Product</h3>
+<div id="t_o"><div class="box" id="olist"></div></div>
+
+<div id="t_p" style="display:none"><div class="box"><h3>Add Product</h3>
 <label>Name</label><input id="pn"><label>Code</label><input id="pc" placeholder="CS-TS-001">
 <label>Category</label><select id="pcat"></select>
-<label>Image</label><input id="pf" type="file" accept="image/*">
-<label><input id="pnew" type="checkbox" style="width:auto"> New Arrival</label><br><br>
+<label>Price (e.g. Rs. 1500)</label><input id="ppr">
+<label>Description</label><textarea id="pd" rows="3"></textarea>
+<label>Sizes (comma se alag: S, M, L, XL)</label><input id="psz">
+<label>Colours (comma se alag: Red, Blue)</label><input id="pco">
+<label>Images (kayi images ek saath chun sakte hain)</label><input id="pf" type="file" accept="image/*" multiple>
+<label><input id="pnew" type="checkbox" style="width:auto"> New Arrival</label>
+<label><input id="pst" type="checkbox" style="width:auto" checked> In stock</label><br><br>
 <button class="red" id="addb" onclick="addP()">Add Product</button></div>
 <div class="box" id="plist"></div></div>
 
-<div id="tc" style="display:none"><div class="box"><h3>Add Category</h3><input id="cn"><button class="red" onclick="addC()">Add</button></div><div class="box" id="clist"></div></div>
+<div id="t_b" style="display:none"><div class="box"><h3>Add Banner (home page slider)</h3>
+<label>Image</label><input id="bf" type="file" accept="image/*"><label>Heading</label><input id="bt"><label>Sub text</label><input id="bs">
+<button class="red" id="bb" onclick="addB()">Add Banner</button></div><div class="box" id="blist"></div></div>
 
-<div id="ts" style="display:none"><div class="box"><h3>Site Settings</h3>
-<label>Banner title</label><input id="s_banner_title"><label>Banner subtitle</label><input id="s_banner_sub">
+<div id="t_c" style="display:none"><div class="box"><h3>Add Category</h3><input id="cn"><button class="red" onclick="addC()">Add</button></div><div class="box" id="clist"></div></div>
+
+<div id="t_s" style="display:none"><div class="box"><h3>Site Settings</h3>
+<label>Logo (image)</label><input id="s_logo" type="file" accept="image/*"><div id="lp"></div>
+<label>Site name / default banner title</label><input id="s_banner_title"><label>Default banner subtitle</label><input id="s_banner_sub">
 <label>WhatsApp number (country code ke sath, + ke baghair)</label><input id="s_whatsapp">
-<label>Phone</label><input id="s_phone"><label>Email</label><input id="s_email"><label>Address</label><input id="s_address">
-<button class="red" onclick="saveS()">Save</button></div></div>
+<label>Phone</label><input id="s_phone"><label>Email</label><input id="s_email"><label>Address</label><input id="s_address"><label>Opening hours</label><input id="s_hours">
+<label>About us</label><textarea id="s_about" rows="4"></textarea>
+<label>Privacy Policy</label><textarea id="s_privacy" rows="6"></textarea>
+<label>Terms &amp; Conditions</label><textarea id="s_terms" rows="6"></textarea>
+<button class="red" id="ss" onclick="saveS()">Save</button></div></div>
 </div></main>
 <script>
-const $=i=>document.getElementById(i);
-let C=[],P=[];
-function tab(t){["p","c","s"].forEach(x=>$("t"+x).style.display=x==t?"block":"none")}
-async function init(){
- const {data}=await sb.auth.getSession();
- if(data.session){$("login").style.display="none";$("panel").style.display="block";$("out").style.display="inline-block";refresh()}
- else $("login").style.display="block";
-}
-async function doLogin(){
- const {error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});
- if(error)return alert("Login failed: "+error.message);init();
-}
+const $=i=>document.getElementById(i);let C=[],P=[],O=[],B=[],S={};
+const T=[["o","Orders"],["p","Products"],["b","Banners"],["c","Categories"],["s","Settings"]];
+$("tabs").innerHTML=T.map(([k,n])=>`<button class="sec" onclick="tab('${k}')">${n}</button>`).join("");
+function tab(t){T.forEach(([k])=>$("t_"+k).style.display=k==t?"block":"none")}
+async function up(f){const path=Date.now()+"-"+Math.random().toString(36).slice(2,6)+"-"+f.name.replace(/[^a-z0-9.]/gi,"_");
+ const r=await sb.storage.from("product-images").upload(path,f);if(r.error)throw r.error;return sb.storage.from("product-images").getPublicUrl(path).data.publicUrl}
+async function init(){const {data}=await sb.auth.getSession();
+ if(data.session){$("login").style.display="none";$("panel").style.display="block";$("out").style.display="inline-block";refresh()}else $("login").style.display="block"}
+async function doLogin(){const {error}=await sb.auth.signInWithPassword({email:$("em").value.trim(),password:$("pw").value});if(error)return alert("Login failed: "+error.message);init()}
 async function refresh(){
- const [c,p,s]=await Promise.all([sb.from("categories").select("*").order("id"),sb.from("products").select("*").order("id",{ascending:false}),sb.from("settings").select("*").eq("id",1).single()]);
- C=c.data||[];P=p.data||[];
+ const [c,p,o,b,s]=await Promise.all([sb.from("categories").select("*").order("id"),sb.from("products").select("*").order("id",{ascending:false}),sb.from("orders").select("*").order("id",{ascending:false}),sb.from("banners").select("*").order("id"),sb.from("settings").select("*").eq("id",1).single()]);
+ C=c.data||[];P=p.data||[];O=o.data||[];B=b.data||[];S=s.data||{};
  $("pcat").innerHTML=C.map(x=>`<option>${esc(x.name)}</option>`).join("");
- $("plist").innerHTML="<h3>All Products</h3>"+P.map(p=>`<div class="row"><span>${p.image_url?`<img src="${esc(p.image_url)}">`:"👕"}</span><span style="flex:1">${esc(p.name)}<br><small>${esc(p.code)} · ${esc(p.category)}${p.is_new?" · NEW":""}</small></span><button class="sec" onclick="delP(${p.id})">Delete</button></div>`).join("");
+ $("olist").innerHTML=`<h3>Orders (${O.length})</h3>`+(O.map(x=>`<div class="row" style="align-items:flex-start"><div style="flex:1;min-width:200px"><b>${esc(x.product_name)}</b> <small>${esc(x.product_code)}</small><br>Size: ${esc(x.size||"-")} · Colour: ${esc(x.color||"-")} · Qty: ${x.qty}<br>👤 ${esc(x.customer_name)} · <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a><br>📍 ${esc(x.address)}<br><small>${new Date(x.created_at).toLocaleString()}</small></div>
+ <select style="width:130px" onchange="setO(${x.id},this.value)">${["New","Confirmed","Delivered","Cancelled"].map(s=>`<option ${s==x.status?"selected":""}>${s}</option>`).join("")}</select><button class="sec" onclick="delO(${x.id})">Delete</button></div>`).join("")||"<p>No orders yet.</p>");
+ $("plist").innerHTML="<h3>All Products</h3>"+P.map(p=>{const im=(p.images&&p.images[0])||p.image_url;return `<div class="row"><span>${im?`<img src="${esc(im)}">`:"👕"}</span><span style="flex:1">${esc(p.name)}<br><small>${esc(p.code)} · ${esc(p.category)} · ${esc(p.price||"")} ${p.is_new?"· NEW":""}${p.in_stock===false?" · OUT":""}</small></span><button class="sec" onclick="stock(${p.id},${p.in_stock===false})">${p.in_stock===false?"Mark in stock":"Mark out"}</button><button class="sec" onclick="delP(${p.id})">Delete</button></div>`}).join("");
+ $("blist").innerHTML="<h3>Banners</h3>"+B.map(b=>`<div class="row"><img src="${esc(b.image_url)}"><span style="flex:1">${esc(b.title)}</span><button class="sec" onclick="delB(${b.id})">Delete</button></div>`).join("");
  $("clist").innerHTML="<h3>Categories</h3>"+C.map(x=>`<div class="row"><span style="flex:1">${esc(x.name)}</span><button class="sec" onclick="delC(${x.id})">Delete</button></div>`).join("");
- for(const k in (s.data||{}))if($("s_"+k))$("s_"+k).value=s.data[k]??"";
+ ["banner_title","banner_sub","whatsapp","phone","email","address","hours","about","privacy","terms"].forEach(k=>$("s_"+k).value=S[k]??"");
+ $("lp").innerHTML=S.logo_url?`<img src="${esc(S.logo_url)}" style="height:50px;margin-bottom:10px">`:"";
 }
+const err=r=>r.error&&alert(r.error.message);
+async function setO(id,v){err(await sb.from("orders").update({status:v}).eq("id",id))}
+async function delO(id){if(confirm("Delete order?")){await sb.from("orders").delete().eq("id",id);refresh()}}
 async function addP(){
  const name=$("pn").value.trim();if(!name)return alert("Product name likhein");
  $("addb").disabled=true;$("addb").textContent="Uploading...";
- let image_url=null;const f=$("pf").files[0];
- if(f){const path=Date.now()+"-"+f.name.replace(/[^a-z0-9.]/gi,"_");
-  const up=await sb.storage.from("product-images").upload(path,f);
-  if(up.error){alert("Image error: "+up.error.message);$("addb").disabled=false;$("addb").textContent="Add Product";return}
-  image_url=sb.storage.from("product-images").getPublicUrl(path).data.publicUrl}
- const r=await sb.from("products").insert({name,code:$("pc").value.trim(),category:$("pcat").value,image_url,is_new:$("pnew").checked});
- if(r.error)alert(r.error.message);
- $("pn").value="";$("pc").value="";$("pf").value="";$("pnew").checked=false;
+ try{const images=[];for(const f of $("pf").files)images.push(await up(f));
+  const r=await sb.from("products").insert({name,code:$("pc").value.trim(),category:$("pcat").value,price:$("ppr").value.trim(),description:$("pd").value.trim(),sizes:$("psz").value.trim(),colors:$("pco").value.trim(),images,image_url:images[0]||null,is_new:$("pnew").checked,in_stock:$("pst").checked});err(r);
+  ["pn","pc","ppr","pd","psz","pco","pf"].forEach(i=>$(i).value="");$("pnew").checked=false;
+ }catch(e){alert("Error: "+e.message)}
  $("addb").disabled=false;$("addb").textContent="Add Product";refresh();
 }
+async function stock(id,v){await sb.from("products").update({in_stock:v}).eq("id",id);refresh()}
 async function delP(id){if(confirm("Delete?")){await sb.from("products").delete().eq("id",id);refresh()}}
-async function addC(){const n=$("cn").value.trim();if(!n)return;const r=await sb.from("categories").insert({name:n});if(r.error)alert(r.error.message);$("cn").value="";refresh()}
+async function addB(){const f=$("bf").files[0];if(!f)return alert("Image chunein");$("bb").disabled=true;
+ try{const image_url=await up(f);err(await sb.from("banners").insert({image_url,title:$("bt").value.trim(),subtitle:$("bs").value.trim()}));$("bf").value="";$("bt").value="";$("bs").value=""}catch(e){alert(e.message)}
+ $("bb").disabled=false;refresh()}
+async function delB(id){if(confirm("Delete?")){await sb.from("banners").delete().eq("id",id);refresh()}}
+async function addC(){const n=$("cn").value.trim();if(!n)return;err(await sb.from("categories").insert({name:n}));$("cn").value="";refresh()}
 async function delC(id){if(confirm("Delete?")){await sb.from("categories").delete().eq("id",id);refresh()}}
-async function saveS(){
- const o={};["banner_title","banner_sub","whatsapp","phone","email","address"].forEach(k=>o[k]=$("s_"+k).value.trim());
- const r=await sb.from("settings").update(o).eq("id",1);alert(r.error?r.error.message:"Saved");
-}
+async function saveS(){const o={};["banner_title","banner_sub","whatsapp","phone","email","address","hours","about","privacy","terms"].forEach(k=>o[k]=$("s_"+k).value.trim());
+ $("ss").disabled=true;try{const f=$("s_logo").files[0];if(f)o.logo_url=await up(f)}catch(e){alert(e.message)}
+ const r=await sb.from("settings").update(o).eq("id",1);$("ss").disabled=false;alert(r.error?r.error.message:"Saved");$("s_logo").value="";refresh()}
 init();
 </script></body></html>
